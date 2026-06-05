@@ -1,0 +1,117 @@
+{
+  "projects": [
+    {
+      "id": 1,
+      "name": "Basic",
+      "completed": false,
+      "phases": [
+        {
+          "id": 1,
+          "name": "start",
+          "completed": false,
+          "tasks": [
+            {
+              "id": 1,
+              "name": "starting",
+              "completed": false
+            },
+            {
+              "id": 2,
+              "name": "New Task",
+              "completed": false
+            },
+            {
+              "id": 3,
+              "name": "New Task",
+              "completed": false
+            },
+            {
+              "id": 4,
+              "name": "New Task",
+              "completed": false
+            },
+            {
+              "id": 5,
+              "name": "New Task",
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Phase 2",
+          "completed": false,
+          "tasks": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Intermed",
+      "completed": false,
+      "phases": [
+        {
+          "id": 1,
+          "name": "cont",
+          "completed": false,
+          "tasks": [
+            {
+              "id": 1,
+              "name": "keep going",
+              "completed": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Third project",
+      "completed": false,
+      "phases": [
+        {
+          "id": 1,
+          "name": "Phase 1",
+          "completed": false,
+          "tasks": [
+            {
+              "id": 1,
+              "name": "New Task",
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Phase 2",
+          "completed": false,
+          "tasks": []
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "test",
+      "completed": false,
+      "phases": [
+        {
+          "id": 1,
+          "name": "Phase 1",
+          "completed": false,
+          "tasks": [
+            {
+              "id": 1,
+              "name": "test",
+              "completed": false
+            },
+            {
+              "id": 2,
+              "name": "test1",
+              "completed": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
