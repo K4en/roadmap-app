@@ -1,8 +1,19 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-import os
-import json
-from fastapi.middleware.cors import CORSMiddleware
+import uuid
+
+from fastapi import FastAPI, Request, Response
+import sqlite3
+
+from starlette.middleware.cors import CORSMiddleware
+
+from datamodels import (
+ProjectCreate,
+ProjectUpdate,
+PhaseCreate,
+PhaseUpdate,
+TaskCreate,
+TaskUpdate
+)
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -12,130 +23,138 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ----- Functions -----
-def complete_task(project_id, phase_id, task_id):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
-
-    for project in data["projects"]:
-        if project["id"] == project_id:
-            for phase in project["phases"]:
-                if phase["id"] == phase_id:
-                    for task in phase["tasks"]:
-                        if task["id"] == task_id:
-                            task["completed"] = True
-
-    with open(f"data.json", "w") as f:
-        json.dump(data, f)
-
-def complete_phase(project_id, phase_id):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
-
-    for project in data["projects"]:
-        if project["id"] == project_id:
-            for phase in project["phases"]:
-                if phase["id"] == phase_id:
-                    phase["completed"] = True
-                    for task in phase["tasks"]:
-                        if not task["completed"]:
-                            phase["completed"] = False
+# ==== BaseModels ====
 
 
-    with open(f"data.json", "w") as f:
-        json.dump(data, f)
 
-def complete_project(project_id):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
+# ==== ENDPOINTS ====
 
-    for project in data["projects"]:
-        if project["id"] == project_id:
-            project["completed"] = True
-            for phase in project["phases"]:
-                if not phase["completed"]:
-                    project["completed"] = False
-
-    with open(f"data.json", "w") as f:
-        json.dump(data, f)
-
-# ----- ENDPOINTS -----
+# ==== PROJECTS
 @app.post("/projects")
-def create_project(project: dict):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
+def create_project(project: ProjectCreate):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
 
-    new_project = {
-        "id": len(data["projects"]) + 1,
-        "name": project["name"],
-        "completed": False,
-        "phases": []
-    }
+    cursor.execute("INSERT INTO projects(name) VALUES (?)", (project.name,))
+    conn.commit()
+    conn.close()
 
-    data["projects"].append(new_project)
-
-    with open("data.json", "w") as f:
-        json.dump(data, f, indent=2)
 
 @app.get("/projects")
-def get_projects():
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
-            return data["projects"]
+def list_projects():
+    conn = sqlite3.connect("roadmap.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
-@app.get("/projects/{project_id}")
-def get_project(project_id: int):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
+    cursor.execute("SELECT * FROM projects")
+    projects = [
+        dict(row)
+        for row in cursor.fetchall()
+    ]
+    conn.close()
+    return projects
 
-    for p in data["projects"]:
-        if p["id"] == project_id:
-            return p
+@app.patch("/projects/{id}")
+def update_task(project: ProjectUpdate, id: int):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+                    UPDATE projects SET name = ?, completed = ? WHERE id = ?""",
+                   (project.name, project.completed, id,))
+    conn.commit()
+    conn.close()
 
+@app.delete("/projects/{id}")
+def delete_project(id: int):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM projects WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
 
+# ==== PHASES ====
+@app.get("/phases")
+def list_phases():
+    conn = sqlite3.connect("roadmap.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
-@app.patch("/projects/{project_id}")
-def update_project(project_id: int, new_data: dict):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
-
-    for i in range(len(data["projects"])):
-        project = data["projects"][i]
-        if project["id"] == project_id:
-            data["projects"][i] = new_data
-
-    with open("data.json", "w") as f:
-        json.dump(data, f, indent=2)
-
-@app.delete("/projects/{project_id}")
-def delete_project(project_id: int):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
-
-    for i in range(len(data["projects"])):
-        project = data["projects"][i]
-        if project["id"] == project_id:
-            data["projects"].pop(i)
-
-    with open("data.json", "w") as f:
-        json.dump(data, f, indent=2)
+    cursor.execute("SELECT * FROM phases")
+    phases = [
+        dict(row)
+        for row in cursor.fetchall()
+    ]
+    conn.close()
+    return phases
 
 @app.post("/phases")
-def create_phase(request: Request):
-    if os.path.exists("data.json"):
-        with open("data.json", "r") as f:
-            data = json.load(f)
+def create_phase(phase: PhaseCreate):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+                INSERT INTO phases(project_id, name, completed) 
+                VALUES (?, ?, ?) """,
+        (phase.project_id, phase.name, 0,))
+    conn.commit()
+    conn.close()
 
-#@app.post("/tasks")
-#def create_task(request: Request):
+@app.patch("/phases/{id}")
+def update_phase(phase: PhaseUpdate, id: int):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+                    UPDATE phases SET name = ?, completed = ? WHERE id = ?""",
+                   (phase.name, phase.completed, id,))
+    conn.commit()
+    conn.close()
 
-#@app.post("/side-branches")
-#def create_side_branch(request: Request):
+@app.delete("/phases/{id}")
+def delete_phase(id: int):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM phases WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+
+# ==== TASKS ====
+@app.get("/tasks")
+def list_tasks():
+    conn = sqlite3.connect("roadmap.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM tasks")
+    tasks = [
+        dict(row)
+        for row in cursor.fetchall()
+    ]
+    conn.close()
+    return tasks
+
+@app.post("/tasks")
+def create_task(task: TaskCreate):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("""INSERT INTO tasks(phase_id, name, completed)
+                    VALUES (?, ?, ?)""",
+                   (task.phase_id, task.name, 0,))
+    conn.commit()
+    conn.close()
+
+@app.patch("/tasks/{id}")
+def update_task(task: TaskUpdate, id: int):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+                    UPDATE tasks SET name = ?, completed = ? WHERE id = ?""",
+                   (task.name, task.completed, id,))
+    conn.commit()
+    conn.close()
+
+@app.delete("/tasks/{id}")
+def delete_task(id: int):
+    conn = sqlite3.connect("roadmap.db")
+    cursor = conn.cursor()
+    cursor.execute("""DELETE FROM tasks WHERE id = ?""",(id,))
+    conn.commit()
+    conn.close()

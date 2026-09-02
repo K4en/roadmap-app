@@ -4,40 +4,58 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 export default function App() {
 
     const [projects, setProjects] = useState([]);
-    const [selectedProject, setSelectedProject] = useState(null);
+    const [phases, setPhases] = useState([]);
+    const [tasks, setTasks] = useState([]);
+
+    const [selectedProjectId, setSelectedProjectId] = useState(null);
+
     const [newProjectName, setNewProjectName] = useState("");
     const [addingTaskToPhase, setAddingTaskToPhase] = useState(null);
     const [newTaskName, setNewTaskName] = useState("");
 
+    const [editingProjectId, setEditingProjectId] = useState(null);
+    const [editingPhaseId, setEditingPhaseId] = useState(null);
+    const [editingTaskId, setEditingTaskId] = useState(null);
+    const [editName, setEditName] = useState("");
+
+    const selectedProject = projects.find(
+        project => project.id === selectedProjectId
+        );
+
+    function loadData(){
+        fetch("http://127.0.0.1:8000/projects")
+            .then(r => r.json())
+            .then(setProjects);
+
+        fetch("http://127.0.0.1:8000/phases")
+            .then(r => r.json())
+            .then(setPhases);
+
+        fetch("http://127.0.0.1:8000/tasks")
+            .then(r => r.json())
+            .then(setTasks);
+        }
 
     useEffect(() => {
-            fetch("http://127.0.0.1:8000/projects")
-                .then((response) => response.json())
-                .then((data) => {
-                    setProjects(data);
-
-                    if(data.length > 0){
-                        setSelectedProject(data[0]);
-                        }
-                    });
-
+            loadData();
     }, []);
 
 
 
-    function toggleTask(projectId, phaseId, taskId){
-        projects.forEach((project) =>{
-            if (project.id === projectId){
-                project.phases.forEach((phase) => {
-                    if (phase.id === phaseId){
-                        phase.tasks.forEach((task) => {
-                                if (task.id === taskId){
-                                        task.completed = !task.completed;
-                                    }
-                            });
-                    }});
-            }});
-        setProjects([...projects]);
+    function toggleTask(task){
+        fetch(
+            `http://127.0.0.1:8000/tasks/${task.id}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                    },
+                body: JSON.stringify({
+                    name: task.name,
+                    completed: !task.completed
+                    })
+                })
+            .then(loadData);
     }
 
     function createProject(){
@@ -50,143 +68,115 @@ export default function App() {
             body: JSON.stringify({
                 name: newProjectName
                 })
-
-            }).then(() => fetch("http://127.0.0.1:8000/projects"))
-                .then((response) => response.json())
-                .then((data) => {
-                    setProjects(data);
-                });
-
-    }
-
-    function createPhase(){
-        const updateProject = {...selectedProject};
-
-        updateProject.phases.push({
-            id: updateProject.phases.length+1,
-            name: "Phase " + (updateProject.phases.length + 1),
-            completed: false,
-            tasks:[]
-            });
-
-        fetch(`http://127.0.0.1:8000/projects/${selectedProject.id}`,
-            {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-                },
-            body: JSON.stringify(updateProject)
             })
-                .then(() => {
-                    return fetch("http://127.0.0.1:8000/projects");
-                    })
-                .then((response) => response.json())
-                .then((data) => {setProjects(data);
-                    });
-                ;
+            .then(loadData);
         }
 
-
-
-
-    function createTask(phaseId){
-        const updateProject = {...selectedProject};
-
-        updateProject.phases.forEach((phase) =>{
-            if (phase.id === phaseId){
-                phase.tasks.push({
-                    id: phase.tasks.length + 1,
-                    name: newTaskName,
-                    completed: false
-                    });
-                }
-            });
-        fetch(`http://127.0.0.1:8000/projects/${selectedProject.id}`,
+    function editProject(id, name, completed){
+        fetch(
+            `http://127.0.0.1:8000/projects/${id}`,
             {
-            method: "PATCH",
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                    },
+                body: JSON.stringify({
+                    name: name,
+                    completed: completed
+                    })
+                })
+            .then(loadData);
+        }
+
+    function createPhase(){
+
+        fetch(`http://127.0.0.1:8000/phases`,
+            {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json"
                 },
-            body: JSON.stringify(updateProject)
-            }
-        )
-            .then(() => {
-                    return fetch("http://127.0.0.1:8000/projects");
+            body: JSON.stringify({
+                project_id: selectedProjectId,
+                name: "Phase"
+            })
+        })
+        .then(loadData);
+       }
+
+    function editPhase(id, name, completed){
+        fetch(
+            `http://127.0.0.1:8000/phases/${id}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                    },
+                body: JSON.stringify({
+                    name: name,
+                    completed: completed
                     })
-                .then((response) => response.json())
-                .then((data) => {setProjects(data);
-                    });
-        ;
+                })
+            .then(loadData);
+        }
+
+    function createTask(phaseId){
+        fetch(`http://127.0.0.1:8000/tasks`,
+            {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+                },
+            body: JSON.stringify({
+                phase_id: phaseId,
+                name:newTaskName
+                })
+            })
+            .then(loadData);
     }
 
+    function editTask(id, name, completed){
+        fetch(
+            `http://127.0.0.1:8000/tasks/${id}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                    },
+                body: JSON.stringify({
+                    name: name,
+                    completed: completed
+                    })
+                })
+            .then(loadData);
+        }
+
     function deleteProject(projectId){
-
-
-        fetch(`http://127.0.0.1:8000/projects/${selectedProject.id}`,{
+        fetch(`http://127.0.0.1:8000/projects/${projectId}`,{
             method: "DELETE"
             })
-            .then(() => fetch("http://127.0.0.1:8000/projects"))
-            .then((response) => response.json())
-            .then((data) => {
-                setProjects(data);
-                setSelectedProject(null);
-                });
+            .then(() => {
+                setSelectedProjectId(null);
+                loadData();
+            });
         }
 
     function deletePhase(phaseId){
-        const updateProject = {...selectedProject}
-
-        updateProject.phases = updateProject.phases.filter(
-            phase => phase.id !== phaseId
-            );
-
-        fetch(`http://127.0.0.1:8000/projects/${selectedProject.id}`,{
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-                },
-            body: JSON.stringify(updateProject)
+        fetch(`http://127.0.0.1:8000/phases/${phaseId}`,{
+            method: "DELETE"
             })
-                .then(() => fetch("http://127.0.0.1:8000/projects"))
-                .then((response) => response.json())
-                .then((data) => {
-                    setProjects(data);
-                    const updateProject = data.find(
-                        p => p.id === selectedProject.id
-                        );
-                    setSelectedProject(updateProject);
-                });
-
-
+            .then(loadData);
         }
 
 
     function deleteTask(phaseId, taskId){
-        const updateProject = {...selectedProject}
-
-            updateProject.phases.forEach((phase) => {
-                    if (phase.id === phaseId){
-                        phase.tasks = phase.tasks.filter(
-                            task => task.id !== taskId
-                            );
-                        }});
-
-        fetch(`http://127.0.0.1:8000/projects/${selectedProject.id}`,{
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-                },
-            body: JSON.stringify(updateProject)
-            })
-                .then(() => fetch("http://127.0.0.1:8000/projects"))
-                .then((response) => response.json())
-                .then((data) => {
-                    setProjects(data);
-                    const updateProject = data.find(
-                        p => p.id === selectedProject.id
-                        );
-                    setSelectedProject(updateProject);
-                });
+        fetch(
+            `http://127.0.0.1:8000/tasks/${taskId}`,
+            {
+                method: "DELETE"
+                }
+            )
+            .then(loadData);
 
         }
 
@@ -209,19 +199,47 @@ export default function App() {
 
 
                 {projects.map((project) => (
-                    <div className="card p-2 mb-3">
+                    <div className="card p-2 mb-3" key={project.id}>
                     <div
                         className="d-flex justify-content-between align-items-center"
-                        key={project.id}
                         onClick={() =>{
-                            setSelectedProject(project);
+                            console.log(project.id)
+                            setSelectedProjectId(project.id);
                             setAddingTaskToPhase(null);
                             setNewTaskName("");
                             }}
 
-                    >
-                        <span>{project.name}</span>
-
+                    >   {editingProjectId === project.id ? (
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) =>
+                                        setEditName(e.target.value)
+                                        }
+                                    onKeyDown={(e)=> {
+                                        if(e.key === "Enter") {
+                                            editProject(
+                                                project.id,
+                                                editName,
+                                                project.completed
+                                                );
+                                            setEditingProjectId(null);
+                                            }
+                                        }}
+                                    />
+                                ) : (
+                                <span>{project.name}</span>
+                        )}
+                    <div className="d-flex gap-2">
+                            <button
+                                className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                onClick={() => {
+                                    setEditingProjectId(project.id);
+                                    setEditName(project.name);
+                                    }}
+                            >
+                                <i className="bi bi-pencil"></i>
+                            </button>
                          <button
                             className="btn btn-sm btn-outline-danger"
                             onClick={(e) => {
@@ -231,6 +249,7 @@ export default function App() {
                             >
                             <i className="bi bi-trash"></i>
                          </button>
+                         </div>
                     </div>
                     </div>
                 ))}
@@ -245,13 +264,45 @@ export default function App() {
                         <button onClick={createPhase}>
                             Add Phase
                         </button>
-                        {selectedProject.phases.map((phase) =>(
-                            <div className="card mb-3">
+                        {phases.filter(
+                            phase => phase.project_id === selectedProjectId
+                            ).map((phase) =>(
+                            <div className="card mb-3"  key={phase.id}>
                             <div
                                 className="card-header d-flex justify-content-between align-items-center"
-                                key={phase.id}
                             >
-                            <span>{phase.name}</span>
+                            {editingPhaseId === phase.id ? (
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) =>
+                                        setEditName(e.target.value)
+                                        }
+                                    onKeyDown={(e)=> {
+                                        if(e.key === "Enter") {
+                                            editPhase(
+                                                phase.id,
+                                                editName,
+                                                phase.completed
+                                                );
+                                            setEditingPhaseId(null);
+                                            }
+                                        }}
+                                    />
+                                ) : (
+                                    <span>{phase.name}</span>
+                                )
+                            }
+                            <div className="d-flex gap-2">
+                            <button
+                                className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                onClick={() => {
+                                    setEditingPhaseId(phase.id);
+                                    setEditName(phase.name);
+                                    }}
+                            >
+                                <i className="bi bi-pencil"></i>
+                            </button>
                             <button
                                 className="btn btn-sm btn-outline-danger"
                             onClick={(e) => {
@@ -261,6 +312,7 @@ export default function App() {
                             >
                                 <i className="bi bi-trash"></i>
                                 </button>
+                                </div>
                             </div>
                             <div className="card-body">
                             {addingTaskToPhase === phase.id ? (
@@ -283,7 +335,9 @@ export default function App() {
                                     </button>
 
                             )}
-                            {phase.tasks.map((task) =>(
+                            {tasks.filter(
+                                task => task.phase_id === phase.id
+                                ).map((task) =>(
                                 <div
                                     key={task.id}
                                     className="d-flex justify-content-between align-items-center border-bottom py-1"
@@ -292,15 +346,44 @@ export default function App() {
                                     <input
                                         type="checkbox"
                                         onChange={() => toggleTask(
-                                            selectedProject.id,
-                                            phase.id,
-                                            task.id
+                                            task
                                             )}
                                         checked={task.completed}
 
                                         />
-                                        {task.name}
+                                        {editingTaskId === task.id ? (
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) =>
+                                        setEditName(e.target.value)
+                                        }
+                                    onKeyDown={(e)=> {
+                                        if(e.key === "Enter") {
+                                            editTask(
+                                                task.id,
+                                                editName,
+                                                task.completed
+                                                );
+                                            setEditingTaskId(null);
+                                            }
+                                        }}
+                                    />
+                                ) : (
+                                    <span>{task.name}</span>
+                                )
+                            }
                                    </div>
+                                   <div className="d-flex gap-2">
+                            <button
+                                className="btn btn-sm btn-outline-secondary py-0 px-2"
+                                onClick={() => {
+                                    setEditingTaskId(task.id);
+                                    setEditName(task.name);
+                                    }}
+                            >
+                                <i className="bi bi-pencil"></i>
+                            </button>
                                    <button
                                             className="btn btn-sm btn-outline-danger"
                                             onClick={(e) => {
@@ -310,6 +393,7 @@ export default function App() {
                                         >
                                         <i className="bi bi-trash"></i>
                                     </button>
+                                    </div>
                                     </div>
                                 ))}
                             </div>
